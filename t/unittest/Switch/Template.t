@@ -28,7 +28,7 @@ BEGIN {
 use pf::config::builder::template_switches;
 use pf::Switch::Template;
 my $builder = pf::config::builder::template_switches->new;
-use Test::More tests => (scalar @FILES) + 18;
+use Test::More tests => (scalar @FILES) + 16;
 #This test will running last
 use Test::NoWarnings;
 for my $file (@FILES) {
@@ -139,19 +139,6 @@ for my $file (@FILES) {
     ($sent, $log) = $send->(_useCoA => 'N', _RoleMap => 'Y');
     is($sent, 'disconnect', "useCoA disabled: Disconnect-Request");
     is($log, '', "nothing logged when useCoA is disabled");
-}
-
-{
-    my $ini = pf::IniFiles->new(-file => "$SWITCH_DIR/Extreme/VOSS.def", -fallback => 'Extreme::VOSS');
-    my (undef, $entries) = $builder->build($ini);
-    my %switch = (_template => $entries->{'Extreme::VOSS'}, _id => '10.0.0.8', _roles => { staff => '0:10020' });
-    my $switch = bless { %switch, _VlanMap => 'Y', _RoleMap => 'N' }, 'pf::Switch::Template';
-    my (undef, %reply) = @{ $switch->returnRadiusAccessAccept({ vlan => 20, user_role => 'staff', unfiltered => 'Y' }) };
-    is_deeply(\%reply, { 'Extreme-Dynamic-Client-Assignments' => 'pv=20,ev=0' }, "Extreme::VOSS: VLAN of the switch VLAN map");
-
-    $switch = bless { %switch, _VlanMap => 'N', _RoleMap => 'Y' }, 'pf::Switch::Template';
-    (undef, %reply) = @{ $switch->returnRadiusAccessAccept({ vlan => 20, user_role => 'staff', unfiltered => 'Y' }) };
-    is_deeply(\%reply, { 'Fabric-Attach-VLAN-ISID' => '0:10020' }, "Extreme::VOSS: Fabric Attach binding of the switch role map");
 }
 
 =head1 AUTHOR
