@@ -94,6 +94,20 @@ Attribute-Name2 = value2
 EOT
 ....
 
+An attribute repeated in the `acceptVlan` or `acceptRole` scope is returned
+once per line, for the attributes that take one value each:
+
+....
+acceptRole = <<EOT
+Filter-Id = $role
+Cisco-AVPair = ip:inacl#101=permit udp any any eq domain
+Cisco-AVPair = ip:inacl#102=deny ip any any
+EOT
+....
+
+When `acceptVlan` and `acceptRole` both return an attribute, the values of
+`acceptRole` replace the ones of `acceptVlan`.
+
 ==== Attributes missing from the RADIUS dictionary
 
 The attribute names must exist in the RADIUS dictionaries shipped with PacketFence. To use an attribute that is not there, for example `Extreme-Dynamic-Config` (vendor 1916, attribute 252), which Extreme Fabric Engine switches accept with the value `PORTBOUNCE` in a CoA to bounce the port, define it in [filename]`/usr/local/pf/conf/radiusd/dictionary.local` (see [filename]`dictionary.local.example` in the same directory), using the FreeRADIUS dictionary format:

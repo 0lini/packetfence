@@ -28,7 +28,7 @@ BEGIN {
 use pf::config::builder::template_switches;
 use pf::Switch::Template;
 my $builder = pf::config::builder::template_switches->new;
-use Test::More tests => (scalar @FILES) + 16;
+use Test::More tests => (scalar @FILES) + 18;
 #This test will running last
 use Test::NoWarnings;
 for my $file (@FILES) {
@@ -139,6 +139,19 @@ for my $file (@FILES) {
     ($sent, $log) = $send->(_useCoA => 'N', _RoleMap => 'Y');
     is($sent, 'disconnect', "useCoA disabled: Disconnect-Request");
     is($log, '', "nothing logged when useCoA is disabled");
+}
+
+{
+    my (undef, $set) = pf::config::builder::template_switches::make_radius_attribute_set("A = 1\nB = x\nA = 2\nA = 3");
+    is_deeply(pf::Switch::Template->makeRadiusReply($set, {}), { A => [1, 2, 3], B => 'x' }, "makeRadiusReply sends an attribute repeated in a set several times");
+
+    my $template = {
+        acceptVlan => (pf::config::builder::template_switches::make_radius_attribute_set("Tunnel-Private-Group-Id = \$vlan\nCisco-AVPair = a=1\nCisco-AVPair = b=2"))[1],
+        acceptRole => (pf::config::builder::template_switches::make_radius_attribute_set("Filter-Id = \$role\nCisco-AVPair = c=3\nCisco-AVPair = d=4"))[1],
+    };
+    my $switch = bless { _template => $template, _id => 'x', _roles => { staff => 'staff-acl' }, _VlanMap => 'Y', _RoleMap => 'Y' }, 'pf::Switch::Template';
+    my (undef, %reply) = @{ $switch->returnRadiusAccessAccept({ vlan => 20, user_role => 'staff', unfiltered => 'Y' }) };
+    is_deeply(\%reply, { 'Tunnel-Private-Group-Id' => 20, 'Filter-Id' => 'staff-acl', 'Cisco-AVPair' => ['c=3', 'd=4'] }, "returnRadiusAccessAccept returns the repeated attributes, acceptRole replaces acceptVlan");
 }
 
 =head1 AUTHOR

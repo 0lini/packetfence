@@ -108,6 +108,30 @@ sub makeRadiusAttributes {
     return \@attrs;
 }
 
+=item makeRadiusReply
+
+Build the attributes of a reply as a hash, an attribute repeated in the set is
+sent several times (its values in an array)
+
+=cut
+
+sub makeRadiusReply {
+    my ($self, $attrs_tmpl, $vars) = @_;
+    my $attrs = $self->makeRadiusAttributes($attrs_tmpl, $vars);
+    my %reply;
+    while (my ($name, $value) = splice(@$attrs, 0, 2)) {
+        if (!exists $reply{$name}) {
+            $reply{$name} = $value;
+        } elsif (ref($reply{$name}) eq 'ARRAY') {
+            push @{$reply{$name}}, $value;
+        } else {
+            $reply{$name} = [$reply{$name}, $value];
+        }
+    }
+
+    return \%reply;
+}
+
 =item handleRadiusDeny
 
 Return RLM_MODULE_USERLOCK if the vlan id is -1
@@ -155,8 +179,7 @@ sub returnRadiusAccessAccept {
         if ( defined $vlanTemplate &&  defined($tmp_args{'vlan'}) && $tmp_args{'vlan'} ne "" && $tmp_args{'vlan'} ne 0) {
             $self->updateArgsVariablesForSet(\%tmp_args, $vlanTemplate);
             $logger->info("(".$self->{'_id'}.") Added VLAN $args->{'vlan'} to the returned RADIUS Access-Accept");
-            my $attrs = $self->makeRadiusAttributes($vlanTemplate, \%tmp_args);
-            $radius_reply_ref = { @$attrs };
+            $radius_reply_ref = $self->makeRadiusReply($vlanTemplate, \%tmp_args);
         } else {
             $logger->debug("(".$self->{'_id'}.") Received undefined VLAN. No VLAN added to RADIUS Access-Accept");
         }
@@ -171,10 +194,9 @@ sub returnRadiusAccessAccept {
         $tmp_args{role} = $role;
         if (defined $roleTemplate && defined($role) && $role ne "" ) {
             $self->updateArgsVariablesForSet(\%tmp_args, $roleTemplate);
-            my $attrs = $self->makeRadiusAttributes($roleTemplate, \%tmp_args);
             $radius_reply_ref = {
                 %$radius_reply_ref,
-                @$attrs,
+                %{$self->makeRadiusReply($roleTemplate, \%tmp_args)},
             };
             $logger->info(
                 "(".$self->{'_id'}.") Added role $role to the returned RADIUS Access-Accept"
