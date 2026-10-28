@@ -19,7 +19,7 @@ BEGIN {
     use setup_test_config;
 }
 
-use Test::More tests => 36;
+use Test::More tests => 37;
 use Test::NoWarnings;
 use File::Temp qw(tempdir);
 use Storable qw(dclone);
@@ -37,7 +37,7 @@ EOT
 write_file("$dir/dictionary.local", <<'EOT');
 # custom attributes of the lab
 BEGIN-VENDOR    Extreme
-ATTRIBUTE       Extreme-Dynamic-Config      252     string
+ATTRIBUTE       Lab-Extreme-Attr            254     string
 ATTRIBUTE       Extreme-Port-Mode           251     integer
 VALUE           Extreme-Port-Mode           Bounce  2
 END-VENDOR      Extreme
@@ -54,13 +54,15 @@ BEGIN-VENDOR    No-Such-Vendor
 FLAGS           internal
 EOT
 
+is_deeply($RADIUS_DICTIONARY->{vsattr}{1916}{'Extreme-Dynamic-Config'}, [252, 'string'], 'Extreme-Dynamic-Config is shipped (raddb/dictionary.extreme)');
+
 my $dict = dclone($RADIUS_DICTIONARY);
-ok(!exists $dict->{avendors}{'Extreme-Dynamic-Config'}, 'the attribute is not in the shipped dictionary');
+ok(!exists $dict->{avendors}{'Lab-Extreme-Attr'}, 'the attribute is not in the shipped dictionary');
 
 my @warnings = pf::util::radius_dictionary_local::merge($dict, "$dir/dictionary.local");
-is_deeply($dict->{vsattr}{1916}{'Extreme-Dynamic-Config'}, [252, 'string'], 'vendor block attribute added');
-is($dict->{avendors}{'Extreme-Dynamic-Config'}, 'Extreme', 'vendor block attribute is known as a VSA of its vendor');
-is_deeply($dict->{rvsattr}{1916}{252}, ['Extreme-Dynamic-Config', 'string'], 'reverse lookup of the vendor attribute');
+is_deeply($dict->{vsattr}{1916}{'Lab-Extreme-Attr'}, [254, 'string'], 'vendor block attribute added');
+is($dict->{avendors}{'Lab-Extreme-Attr'}, 'Extreme', 'vendor block attribute is known as a VSA of its vendor');
+is_deeply($dict->{rvsattr}{1916}{254}, ['Lab-Extreme-Attr', 'string'], 'reverse lookup of the vendor attribute');
 is($dict->{vsaval}{1916}{251}{Bounce}, 2, 'value of a vendor attribute');
 is($dict->{vendors}{'Lab-Vendor'}, 65001, 'new vendor added');
 is_deeply($dict->{vsattr}{65001}{'Lab-Vendor-Attr'}, [1, 'string'], 'old style ATTRIBUTE with a vendor column');

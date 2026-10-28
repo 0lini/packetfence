@@ -54,6 +54,7 @@ ATTRIBUTE       AD-Samaccountname       3003    string
 
 $INCLUDE /usr/local/pf/raddb/dictionary.oauth2
 $INCLUDE /usr/local/pf/raddb/dictionary.freeradius.evs5
+$INCLUDE /usr/local/pf/raddb/dictionary.extreme
 
 # Attributes added by the administrator (also loaded by PacketFence for CoA/Disconnect)
 $INCLUDE- /usr/local/pf/conf/radiusd/dictionary.local

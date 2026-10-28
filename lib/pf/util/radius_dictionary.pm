@@ -4013,6 +4013,10 @@ our $RADIUS_DICTIONARY = bless(
             "Extreme-Client-Monitor-Session"                 => "Aerohive",
             "Extreme-Data-Usage-Limit"                       => "Aerohive",
             "Extreme-Daylight-Saving-Offset"                 => "Aerohive",
+            "Extreme-Dynamic-ACL"                            => "Extreme",
+            "Extreme-Dynamic-Client-Assignments"             => "Extreme",
+            "Extreme-Dynamic-Config"                         => "Extreme",
+            "Extreme-Dynamic-MHSA"                           => "Extreme",
             "Extreme-IDM-Message"                            => "Aerohive",
             "Extreme-IDM-Redirect-URL"                       => "Aerohive",
             "Extreme-Libsip-Action"                          => "Aerohive",
@@ -11296,6 +11300,10 @@ our $RADIUS_DICTIONARY = bless(
                 215 => [ "Extreme-VM-IP-Addr",             "ipaddr" ],
                 216 => [ "Extreme-VM-VLAN-ID",             "integer" ],
                 217 => [ "Extreme-VM-VR-Name",             "string" ],
+                250 => [ "Extreme-Dynamic-MHSA",           "integer" ],
+                251 => [ "Extreme-Dynamic-ACL",            "string" ],
+                252 => [ "Extreme-Dynamic-Config",         "string" ],
+                253 => [ "Extreme-Dynamic-Client-Assignments", "string" ],
             },
             1958 => {
                 5  => [ "RedCreek-Tunneled-IP-Addr",      "ipaddr" ],
@@ -20886,6 +20894,7 @@ our $RADIUS_DICTIONARY = bless(
             1916 => {
                 201 => { "0" => "Disabled", "1" => "Enabled" },
                 206 => { "0" => "Disabled", "1" => "Enabled" },
+                250 => { "0" => "Disabled", "1" => "Enabled" },
             },
             1966 => {
                 99  => { "0" => "Disabled", "1" => "Enabled" },
@@ -27022,6 +27031,10 @@ our $RADIUS_DICTIONARY = bless(
             },
             1916 => {
                 "Extreme-CLI-Authorization"      => [ 201, "integer" ],
+                "Extreme-Dynamic-ACL"            => [ 251, "string" ],
+                "Extreme-Dynamic-Client-Assignments" => [ 253, "string" ],
+                "Extreme-Dynamic-Config"         => [ 252, "string" ],
+                "Extreme-Dynamic-MHSA"           => [ 250, "integer" ],
                 "Extreme-Netlogin-Extended-Vlan" => [ 211, "string" ],
                 "Extreme-Netlogin-Only"          => [ 206, "integer" ],
                 "Extreme-Netlogin-Url"           => [ 204, "string" ],
@@ -36947,6 +36960,7 @@ our $RADIUS_DICTIONARY = bless(
             1916 => {
                 201 => { Disabled => 0, Enabled => 1 },
                 206 => { Disabled => 0, Enabled => 1 },
+                250 => { Disabled => 0, Enabled => 1 },
             },
             1966 => {
                 99  => { Disabled => 0, Enabled => 1 },

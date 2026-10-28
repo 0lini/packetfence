@@ -104,6 +104,34 @@ Tunnel-Type = 13
 Cisco-AVPair = device-traffic-class=voice
 EOT
 
+[Extreme::VOSS]
+# Do not edit.
+# Any changes will be lost on upgrade.
+# Extreme Networks VOSS / Fabric Engine (VSP series), wired 802.1X (EAP) and
+# MAC authentication (NEAP), ports in MHSA mode.
+# - acceptVlan: VLAN of the switch VLAN map, untagged
+#   (Extreme-Dynamic-Client-Assignments, VOSS 8.8 and later)
+# - acceptRole: Fabric Attach binding of the switch role map, the role value is
+#   <vlan>:<i-sid>, or 0:<i-sid> for an untagged binding (Flex UNI ports)
+# - bounce: Extreme-Dynamic-Config = PORTBOUNCE (VOSS 8.10 and later), the EAP
+#   sessions of the port are kept
+# See the Network Devices Configuration Guide.
+description=Extreme Networks VOSS / Fabric Engine
+radiusDisconnect=disconnect
+snmpDisconnect=disabled
+acceptVlan=Extreme-Dynamic-Client-Assignments = pv=$vlan,ev=0
+acceptRole=Fabric-Attach-VLAN-ISID = $role
+reject=Reply-Message = This node is not allowed to use this service
+disconnect= <<EOT
+Calling-Station-Id = ${macToEUI48($mac)}
+NAS-IP-Address = $disconnectIp
+EOT
+bounce= <<EOT
+Calling-Station-Id = ${macToEUI48($mac)}
+NAS-IP-Address = $disconnectIp
+Extreme-Dynamic-Config = PORTBOUNCE
+EOT
+
 [HP::Switch]
 # Do not edit.
 # Any changes will be lost on upgrade.

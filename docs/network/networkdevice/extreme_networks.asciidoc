@@ -209,3 +209,351 @@ Enable RADIUS for management access
 
   enable radius mgmt-access
 
+
+==== Extreme VOSS / Fabric Engine (VSP series)
+
+Use the _Extreme Networks VOSS / Fabric Engine_ switch type (template
+`Extreme::VOSS`) for the switches running VOSS or Fabric Engine. It supports:
+
+[options="compact"]
+* 802.1X (EAP) and MAC authentication (NEAP) on wired ports
+* VLAN assignment (`Extreme-Dynamic-Client-Assignments`, VOSS 8.8 and later)
+  or Fabric Attach VLAN:I-SID assignment (`Fabric-Attach-VLAN-ISID`)
+* DHCP Snooping, Dynamic ARP Inspection and IP Source Guard
+  (`Extreme-Dynamic-Config`), enabled with RADIUS filters
+* RADIUS Disconnect-Request to re-evaluate the access of an endpoint
+* port bounce with a RADIUS CoA-Request (`Extreme-Dynamic-Config = PORTBOUNCE`, VOSS 8.10 and later)
+
+The template returns these Access-Accept attributes:
+
+[options="header",cols="1,3"]
+|===
+|PacketFence setting of the switch |Attributes
+|_Role by VLAN ID_ |`Extreme-Dynamic-Client-Assignments = pv=<VLAN>,ev=0` (the endpoint in the VLAN, untagged)
+|_Role by Switch Role_ |`Fabric-Attach-VLAN-ISID = <role value>`
+|===
+
+PacketFence ships the `Extreme-Dynamic-Config` (vendor 1916, attribute 252),
+`Extreme-Dynamic-MHSA` (250), `Extreme-Dynamic-ACL` (251) and
+`Extreme-Dynamic-Client-Assignments` (253) attributes in
+[filename]`/usr/local/pf/raddb/dictionary.extreme`. The Fabric Attach attributes
+(`Fabric-Attach-VLAN-ISID` 171, `Fabric-Attach-VLAN-Create` 170,
+`Fabric-Attach-VLAN-PVID` 172, vendor 562) come from the FreeRADIUS dictionary;
+the Extreme examples name the attribute 171 `Fabric-Attach-ISID`.
+
+NOTE: The commands below follow the VOSS and Fabric Engine user guides. Their
+options change between releases: check them against the CLI reference of the
+release running on the switch. In the examples, PacketFence is 192.168.1.5 and
+the switch is 10.0.0.8.
+
+===== RADIUS servers and dynamic authorization
+
+PacketFence is the RADIUS server of the EAP and NEAP authentications:
+
+  radius server host 192.168.1.5 key useStrongerSecret used-by eapol
+  radius enable
+
+PacketFence needs the RADIUS accounting of the switch to close the
+locationlog entries of the endpoints that leave a port. Check how accounting is
+enabled for EAPoL (`acct-enable` of `radius server host`, `radius accounting
+enable`) in the CLI reference of your release.
+
+PacketFence sends a Disconnect-Request to re-evaluate the access of an endpoint
+and a CoA-Request to bounce a port. Declare PacketFence as a dynamic
+authorization client of the switch, and allow the requests on the
+authentication ports:
+
+  radius dynamic-server client 192.168.1.5 secret useStrongerSecret
+  radius dynamic-server client 192.168.1.5 enable
+  radius dynamic-server client 192.168.1.5 process-change-of-auth-requests
+  radius dynamic-server client 192.168.1.5 process-disconnect-requests
+  interface gigabitEthernet 1/1-1/24
+  eapol radius-dynamic-server enable
+  exit
+
+PacketFence sends the requests to the UDP port 3799, unless the _Disconnect
+port_ and _CoA port_ of the switch are set in PacketFence: set them if the
+switch listens on another port.
+
+===== 802.1X and MAC authentication in MHSA mode
+
+Enable EAPoL globally, then on the ports. `eapol multihost
+radius-non-eap-enable` adds the MAC authentication (NEAP) of the hosts that
+don't speak 802.1X. MHSA (Multiple Host Single Authentication) is the mode
+used by this template: once a host is authenticated, the other hosts of the
+port use its authorization.
+
+  eapol enable
+  interface gigabitEthernet 1/1-1/24
+  eapol status auto
+  eapol multihost radius-non-eap-enable
+  eapol multihost eap-oper-mode mhsa
+  exit
+
+Check the result with `show eapol port interface gigabitEthernet 1/1` and the
+RADIUS server with `show radius reachability`. On an auto-sense port, `show
+eapol port` can display `MHMV` in _Oper Mode_ while the port runs in Dynamic
+MHSA.
+
+In PacketFence, set the _Port host mode_ of the switch to `multi-host` for
+MHSA ports, or `multi-auth` for MHMV ports, where each host authenticates on
+its own.
+
+===== Fabric Attach and I-SID assignment
+
+Enable _Role by Switch Role_ on the switch in PacketFence and set the role
+values to the Fabric Attach binding of each role. The template returns it in
+`Fabric-Attach-VLAN-ISID`:
+
+[options="compact"]
+* `<vlan>:<i-sid>`, for example `20:10020`: the VLAN 20 bound to the I-SID 10020
+  (Switched UNI)
+* `0:<i-sid>`, for example `0:10020`: an untagged binding to the I-SID 10020.
+  Use it on Flex UNI and auto-sense ports, which take the I-SID only.
+
+Flex UNI and auto-sense ports take an I-SID, not a VLAN: without an I-SID
+offset, they ignore the VLAN returned with _Role by VLAN ID_ and the switch logs
+`EAP WARNING Ignore the radius vlan attribute on Flex UNI port 1/1 with
+auto-isid-offset disabled`. Use _Role by Switch Role_ with `0:<i-sid>` values
+on these ports, or configure an I-SID offset: the switch computes the I-SID as
+the offset plus the VLAN returned by PacketFence (with an offset of 1000, the
+VLAN 20 is the I-SID 1020):
+
+  eapol auto-isid-offset 1000
+
+Example of a Flex UNI port with Fabric Attach:
+
+  interface gigabitEthernet 1/10
+  flex-uni enable
+  fa
+  fa enable
+  eapol status auto
+  eapol multihost radius-non-eap-enable
+  exit
+
+Several VLAN:I-SID bindings for one endpoint (an access point with several
+SSIDs, for example) are one `Fabric-Attach-VLAN-ISID` attribute per binding;
+the switch creates all of them in MHSA mode only. Return them with a RADIUS
+filter (see below), separated with `;`:
+
+  answer.0=reply:Fabric-Attach-VLAN-ISID = 0:10020;30:10030
+
+`Fabric-Attach-VLAN-Create` and `Fabric-Attach-VLAN-PVID` are not returned by
+the template. Add them with a RADIUS filter when the switch must create the
+VLAN of a binding or set the PVID of the port.
+
+===== Extreme-Dynamic-Client-Assignments
+
+`Extreme-Dynamic-Client-Assignments` (vendor 1916, attribute 253, string)
+assigns the endpoint to an existing VLAN or I-SID and can also create the VLAN
+or private VLAN, with its name, its I-SID and the I-SID name. The template
+returns `pv=<VLAN>,ev=0` with _Role by VLAN ID_. For the other options, use a
+copy of the template (_Configuration -> Integration -> Switch Templates_), for
+example with `Extreme-Dynamic-Client-Assignments = $role` in `acceptRole` and
+assignment strings as role values. A RADIUS filter answer would add a second
+assignment to the one of the template. The value is a list of options separated
+with `,`:
+
+  create=vlan|pvlan,pv=<primary VLAN>,sv=<secondary VLAN>,vni=<I-SID>,ev=<egress tag>,vn=<VLAN name>,vnin=<I-SID name>,mvni=<I-SID>
+
+[options="header",cols="1,3"]
+|===
+|Option |Use
+|`create` |`vlan` creates a platform VLAN, `pvlan` a private VLAN. Without it, the VLAN must exist. Ignored on DvR leafs.
+|`pv` |platform VLAN of the endpoint, required (the attribute is ignored without it)
+|`sv` |secondary VLAN, with `create=pvlan` only
+|`vni` |I-SID: without `create`, with `ev`, the Switched UNI of a Flex UNI port; with `create`, the I-SID of the new VLAN
+|`ev` |egress tag: `0` or `U` untagged (default), `T` tagged with `pv`; on a Flex UNI port, the C-VID of the Switched UNI
+|`vn`, `vnin` |VLAN name and I-SID name, with `create` only
+|`mvni` |I-SID of the Layer 3 VSN VLAN, enables IP Multicast config-lite (SPB multicast) on the VLAN
+|===
+
+Without `create`, the options match the attributes of the template:
+
+[options="header",cols="1,2,2"]
+|===
+|Port |Template attributes |Extreme-Dynamic-Client-Assignments
+|regular |`Tunnel-Private-Group-Id = 20` |`pv=20`
+|regular |`Tunnel-Private-Group-Id` and `Egress-VLANID` |`pv=20,ev=0` (untagged) or `pv=20,ev=T` (tagged)
+|Flex UNI |`Fabric-Attach-VLAN-ISID = 0:10020` |`vni=10020,ev=0` (untagged; a VLAN ID in `ev` for a tagged Switched UNI)
+|Flex UNI |`Tunnel-Private-Group-Id` with `eapol auto-isid-offset` |`pv=20,ev=0`
+|===
+
+Egress VLAN names are not supported. The VLANs and I-SID names created by the
+attribute exist as long as EAP clients use them: they are deleted with the last
+client and are not saved in the configuration. A created VLAN can't have static
+settings, uses the MSTP instance 0, and private VLANs are supported on Flex UNI
+ports only. In MHMV mode, only the last assignment of a session is applied.
+DHCP Snooping, Dynamic ARP Inspection and IGMP Snooping of these VLANs are
+enabled with `Extreme-Dynamic-Config`.
+
+Example of a RADIUS filter that creates the VLAN 30 with the I-SID 10030 for
+the guests:
+
+  answer.0=reply:Extreme-Dynamic-Client-Assignments = create=vlan,pv=30,vni=10030,ev=0,vn=Guest,vnin=Guest
+
+===== Port bounce
+
+The template bounces a port with a CoA-Request carrying
+`Extreme-Dynamic-Config = PORTBOUNCE` (VOSS 8.10 and later), for example from
+_Restart switchport_ on a node in the admin interface. The EAP sessions of the
+port are kept, Power over Ethernet included if the port supports it, and the
+endpoint renews its DHCP lease in the VLAN or I-SID assigned by PacketFence.
+The interface state shown by the switch tells when a port is down because of a
+RADIUS port bounce.
+
+`PORTBOUNCE` can also be returned in the Access-Accept, with a RADIUS filter
+(see below), so that the endpoints renew their address after a change of VLAN,
+for example a PC behind a phone that reboots.
+The switch doesn't bounce the port again at the periodic re-authentications.
+On Fabric Engine 9.3.1.0, a Disconnect-Request carrying `PORTBOUNCE` doesn't
+clear the NEAP session: the template sends it in a CoA-Request only.
+
+===== DHCP Snooping, Dynamic ARP Inspection and IP Source Guard
+
+The `Extreme-Dynamic-Config` attribute (vendor 1916, attribute 252, string;
+the Extreme documentation also names it `Extreme-Dyn-Config`) of the
+Access-Accept configures VLAN and port features for the endpoint:
+
+[options="header",cols="1,3"]
+|===
+|Value |Feature
+|`DHCPSNOOP` |DHCP Snooping on the VLAN returned by RADIUS (Flex UNI port: the platform VLAN of the returned I-SID)
+|`DAI` |Dynamic ARP Inspection on the VLAN returned by RADIUS (Flex UNI port: the platform VLAN of the returned I-SID)
+|`IGMPSNOOP` |IGMP Snooping on the VLAN returned by RADIUS (Flex UNI port: the platform VLAN of the returned I-SID)
+|`IPSG` |IP Source Guard on the port
+|`BPDU` |BPDU Guard on the port
+|`SLPPGUARD` or `SLPPGUARD:<seconds>` |SLPP Guard on the port; the port is enabled again after the timer (default 60 seconds)
+|`REAUTH` or `REAUTH:<seconds>` |EAPoL re-authentication of the port (EAP and NEAP), with its period
+|`PORTBOUNCE` |port bounce, Power over Ethernet included (VOSS 8.10 and later)
+|`WOL` |EAP traffic control (Wake on LAN) on the port
+|`AN-ADVERTISMENTS:<speed>` |custom auto-negotiation advertisements (CANA) of the port, for example `AN-ADVERTISMENTS:100Half` or `AN-ADVERTISMENTS:100H`; the speeds are `10Half`, `100Half`, `100Full` and `1000Full`
+|===
+
+When no VLAN or I-SID is returned, `DHCPSNOOP` and `DAI` apply to the default
+VLAN of the port (Flex UNI port: the platform VLAN of the untagged I-SID).
+When a VLAN or I-SID is returned, they also apply to the default VLAN, to
+prepare IP Source Guard, but only if `IPSG` is returned too.
+
+With `REAUTH`, a NEAP session (silent devices) is no longer removed when its
+MAC address ages out, only by an administrator or a RADIUS reject or timeout.
+A re-authentication period of 0 keeps the EAP and NEAP sessions from aging out,
+which is a security risk. The `Session-Timeout` of a session changes its own
+re-authentication period, when re-authentication is enabled on the port.
+
+IMPORTANT: Always return `IPSG` with `DHCPSNOOP` and `DAI`. IP Source Guard
+needs DHCP Snooping and Dynamic ARP Inspection on all the VLANs of the port.
+Without them, the switch doesn't apply `IPSG` and logs
+`EAP WARNING Cannot apply Radius IP Source Guard attribute on port 1/15 without DHCP Snooping and DAI attributes`.
+
+The switch takes one value per attribute: several features are several
+`Extreme-Dynamic-Config` attributes in the same Access-Accept. The template
+doesn't return them: enable the features for the switches and roles that need
+them with a RADIUS filter in _Configuration -> Policies and Access Control ->
+Filters engines -> RADIUS filters_ ([filename]`conf/radius_filters.conf`). Its
+answer is added to the one of the template, and each value separated with `;`
+is sent as one attribute:
+
+  [VOSS_DHCP_Protection]
+  status=enabled
+  description=DHCP Snooping, Dynamic ARP Inspection and IP Source Guard on the VOSS switches
+  scopes=returnRadiusAccessAccept
+  condition=switch._switchIp == "10.0.0.8" && node_info.category != "static-ip"
+  answer.0=reply:Extreme-Dynamic-Config = DHCPSNOOP;DAI;IPSG
+
+Leave out `;IPSG` for DHCP Snooping and Dynamic ARP Inspection only. The same
+way, `PORTBOUNCE` in the answer bounces the port after the authentication, so
+that the endpoints renew their address.
+
+Before enabling the features, trust the ports that receive the DHCP replies and
+the ARP traffic of the infrastructure: the port of the DHCP server or relay, the
+port of the PacketFence server and the uplinks. In a fabric, check how the NNI
+ports are handled by DHCP Snooping on your release. Mark the same ports as
+trusted for Dynamic ARP Inspection (see the CLI reference of your release).
+
+  interface gigabitEthernet 1/48
+  ip dhcp-snooping trusted
+  exit
+
+[options="compact"]
+* The devices with a static IP address have no DHCP Snooping binding: Dynamic
+  ARP Inspection drops their ARP packets and IP Source Guard their traffic. Add
+  a static binding for each one, or don't return the features for them (a
+  condition on `node_info.category` or `mac` in the RADIUS filter).
+* A port can be error-disabled when it receives more DHCP or ARP packets than
+  allowed. Check the rate limits of your release before enabling the features
+  on ports with many hosts (access points, MHSA ports behind a hub).
+* PacketFence is the DHCP server of the registration and isolation networks.
+  Trust the port that leads to PacketFence (or to the DHCP relay that forwards
+  to it), otherwise the switch drops its DHCP replies and the endpoints in
+  these networks get no address. DHCP Snooping doesn't support option 82.
+* IP Source Guard works on the DHCP Snooping and Dynamic ARP Inspection
+  untrusted ports. It filters on the addresses learned on the port.
+
+The same features can be configured statically, for the VLANs that don't come
+from RADIUS:
+
+  ip dhcp-snooping enable
+  interface vlan 20
+  ip dhcp-snooping enable
+  ip arp-inspection enable
+  exit
+  interface gigabitEthernet 1/1
+  ip source verify enable
+  exit
+
+===== MHSA and MHMV
+
+Fabric Attach attributes:
+
+[options="header",cols="2,2,2"]
+|===
+|Attribute |MHSA |MHMV
+|`Fabric-Attach-VLAN-ISID` with several bindings |all the bindings are created (up to 94) |only the last binding is created
+|`Fabric-Attach-VLAN-PVID` |processed |not processed
+|===
+
+VLANs on which `DHCPSNOOP` and `DAI` are enabled, and `IPSG` when it is
+returned with them:
+
+[options="header",cols="1,1,1,1,3"]
+|===
+|Mode |`IPSG` returned |Flex UNI |VLAN or I-SID returned |Enabled on
+|MHSA |yes |yes |yes |all the platform VLANs of the port (with IPSG)
+|MHSA |yes |yes |no |all the platform VLANs of the port (with IPSG)
+|MHSA |yes |no |yes |all the platform VLANs of the port (with IPSG)
+|MHSA |yes |no |no |all the platform VLANs of the port (with IPSG)
+|MHSA |no |yes |yes |the platform VLANs of the returned I-SIDs
+|MHSA |no |yes |no |all the static platform VLANs
+|MHSA |no |no |yes |the returned VLAN
+|MHSA |no |no |no |the default VLAN
+|MHMV |yes |yes |yes |the platform VLANs of the returned I-SID and of the untagged I-SID (with IPSG)
+|MHMV |yes |yes |no |the platform VLAN of the untagged I-SID (with IPSG)
+|MHMV |yes |no |yes |the returned VLAN and the default VLAN (with IPSG)
+|MHMV |yes |no |no |the default VLAN (with IPSG)
+|MHMV |no |yes |yes |the platform VLAN of the returned I-SID
+|MHMV |no |yes |no |the platform VLAN of the untagged I-SID
+|MHMV |no |no |yes |the returned VLAN
+|MHMV |no |no |no |the default VLAN
+|===
+
+When no VLAN, and no platform VLAN of the returned I-SID, exists, they are
+enabled on the default VLAN or on the platform VLAN of the static untagged
+I-SID.
+
+MHMA is a mode of the ERS switches; VOSS offers MHSA and MHMV only. The
+Fabric Attach attributes don't work in MHMA.
+
+===== PacketFence configuration
+
+In _Configuration -> Policies and Access Control -> Switches_, add the switch
+with:
+
+[options="compact"]
+* _Type_: Extreme Networks VOSS / Fabric Engine
+* _Mode_: production
+* _Deauthentication Method_: RADIUS
+* _Port host mode_: `multi-host` (MHSA ports)
+* _RADIUS secret_: useStrongerSecret
+* _Role by VLAN ID_ (VLAN ports, VOSS 8.8 and later) or _Role by Switch Role_
+  with VLAN:I-SID values (Fabric Attach, Flex UNI and auto-sense ports)

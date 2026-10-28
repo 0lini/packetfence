@@ -41,6 +41,7 @@ For a list of compatibility related changes see the <<PacketFence_Upgrade_Guide.
 
 === Enhancements
 
+  - New switch template for Extreme Networks VOSS / Fabric Engine (VSP series) — 802.1X and MAC authentication, VLAN assignment with `Extreme-Dynamic-Client-Assignments` or Fabric Attach VLAN:I-SID assignment by switch role (Flex UNI ports included), Disconnect-Request and port bounce with `Extreme-Dynamic-Config = PORTBOUNCE`; the Extreme `Extreme-Dynamic-Config` (DHCP Snooping, Dynamic ARP Inspection, IP Source Guard with RADIUS filters), `Extreme-Dynamic-MHSA`, `Extreme-Dynamic-ACL` and `Extreme-Dynamic-Client-Assignments` attributes are now in the RADIUS dictionary
   - FreeRADIUS scaling — thread pool size configurable as `radiusd_max_servers` (default raised from 64 to 128), and dynamic clients cached for 300 seconds instead of looked up on every packet (#9285, #9287)
   - pfacct and pfdhcp performance — `node.last_seen` and ip4log handled natively by pfacct, balance accounting skipped when no node carries a balance, fewer per-packet database round trips, and a jittered pfdhcplistener rate-limit window to break synchronized renew waves (#9250, #9255, #9256, #9253)
   - Cluster: JSON-RPC calls between members and pfconfig's database calls now time out, so an unhealthy member no longer hangs the others (#9496)

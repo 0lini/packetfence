@@ -8,11 +8,10 @@
 # after a change.
 # A syntax error in this file prevents FreeRADIUS from starting.
 #
-# Example: Extreme-Dynamic-Config, the vendor-specific attribute of Extreme
-# Networks Fabric Engine (vendor 1916, attribute 252). Sent in the coa or
-# bounce scope of a switch template as "Extreme-Dynamic-Config = PORTBOUNCE",
-# it bounces the port so the endpoint renews its DHCP address.
+# Format: the attributes of a vendor go in the block of that vendor. Replace
+# the names in <> (the vendor must be known: shipped, or defined here with a
+# VENDOR line).
 #
-#BEGIN-VENDOR    Extreme
-#ATTRIBUTE       Extreme-Dynamic-Config          252     string
-#END-VENDOR      Extreme
+#BEGIN-VENDOR    <Vendor-Name>
+#ATTRIBUTE       <Attribute-Name>    <number>    <type>
+#END-VENDOR      <Vendor-Name>

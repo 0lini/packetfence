@@ -1,0 +1,27 @@
+# -*- text -*-
+# Copyright (C) 2023 The FreeRADIUS Server project and contributors
+# This work is licensed under CC-BY version 4.0 https://creativecommons.org/licenses/by/4.0
+#
+#	Extreme Networks VOSS / Fabric Engine attributes missing from the
+#	dictionary.extreme of FreeRADIUS 3.2. They come from the
+#	dictionary.extreme of FreeRADIUS 4 (share/dictionary/radius), renamed
+#	with the Extreme- prefix of FreeRADIUS 3.
+#
+#	Extreme-Dynamic-Config is named Extreme-Dyn-Config in the attribute
+#	description of the Extreme documentation: same vendor and number.
+#
+#	The Extreme vendor (1916) is defined by the dictionary.extreme of
+#	FreeRADIUS, which raddb/dictionary includes first.
+#
+
+BEGIN-VENDOR	Extreme
+
+ATTRIBUTE	Extreme-Dynamic-MHSA			250	integer
+ATTRIBUTE	Extreme-Dynamic-ACL			251	string
+ATTRIBUTE	Extreme-Dynamic-Config			252	string
+ATTRIBUTE	Extreme-Dynamic-Client-Assignments	253	string
+
+VALUE	Extreme-Dynamic-MHSA		Disabled		0
+VALUE	Extreme-Dynamic-MHSA		Enabled			1
+
+END-VENDOR	Extreme
