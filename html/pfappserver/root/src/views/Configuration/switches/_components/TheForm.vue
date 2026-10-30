@@ -332,6 +332,29 @@
             </b-card>
           </base-form-tab>
 
+          <base-form-tab
+            :title="$i18n.t('RADIUS Attributes')">
+            <b-card class="mb-3 pb-0" no-body>
+              <b-card-header>
+                <h4 class="mb-0" v-t="'Role mapping by RADIUS Attributes'"></h4>
+              </b-card-header>
+              <div class="card-body pb-0">
+                <form-group-toggle-radius-attributes-map namespace="RadiusAttributesMap"
+                  :column-label="$i18n.t('Role by RADIUS Attributes')"
+                  :text="$i18n.t('RADIUS attributes added to the Access-Accept of the role. Add an attribute several times to return several values.')"
+                />
+
+                <template v-if="isRadiusAttributesMap">
+                  <base-role-map-list :roles="filteredRoles" v-slot="{ role }">
+                    <form-group-role-map-radius-attributes :key="`${role}RadiusAttributes`"
+                      :namespace="`${role}RadiusAttributes`"
+                      :column-label="role" />
+                  </base-role-map-list>
+                </template>
+              </div>
+            </b-card>
+          </base-form-tab>
+
           <base-form-tab v-if="supports(['ExternalPortal'])"
             :title="$i18n.t('Web Auth URL')">
             <b-card class="mb-3 pb-0" no-body>
@@ -678,6 +701,7 @@ import {
   FormGroupRadiusDeauthUseConnector,
   FormGroupRadiusSecret,
   FormGroupRoleMapAccessList,
+  FormGroupRoleMapRadiusAttributes,
   FormGroupRoleMapRole,
   FormGroupRoleMapVpn,
   FormGroupRoleMapUrl,
@@ -707,6 +731,7 @@ import {
   FormGroupSnmpVersionTrap,
   FormGroupUseSnmp,
   FormGroupToggleAccessListMap,
+  FormGroupToggleRadiusAttributesMap,
   FormGroupToggleRoleMap,
   FormGroupToggleVpnMap,
   FormGroupToggleUrlMap,
@@ -744,6 +769,7 @@ import BaseRoleMapList from './BaseRoleMapList.vue'
 const components = {
   BaseForm,
   BaseFormTab,
+  BaseRoleMapList,
   BaseInputToggleAdvancedMode,
 
   FormGroupContainer,
@@ -768,6 +794,7 @@ const components = {
   FormGroupRadiusDeauthUseConnector,
   FormGroupRadiusSecret,
   FormGroupRoleMapAccessList,
+  FormGroupRoleMapRadiusAttributes,
   FormGroupRoleMapRole,
   FormGroupRoleMapVpn,
   FormGroupRoleMapUrl,
@@ -797,6 +824,7 @@ const components = {
   FormGroupSnmpVersionTrap,
   FormGroupUseSnmp,
   FormGroupToggleAccessListMap,
+  FormGroupToggleRadiusAttributesMap,
   FormGroupToggleRoleMap,
   FormGroupToggleVpnMap,
   FormGroupToggleUrlMap,

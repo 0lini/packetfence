@@ -1,4 +1,4 @@
-import { computed, ref, toRefs } from '@vue/composition-api'
+import { computed, provide, ref, toRefs } from '@vue/composition-api'
 import { useFormMetaSchema } from '@/composables/useMeta'
 import i18n from '@/utils/locale'
 import { baseRoles } from '../../switches/config'
@@ -19,6 +19,13 @@ export const useForm = (props, context) => {
       ...roles.value,
       ...allRoles.map(role => role.id)
     ]
+  })
+
+  // provide RADIUS attributes to all child nodes
+  const radiusAttributes = ref({})
+  provide('radiusAttributes', radiusAttributes)
+  $store.dispatch('radius/getAttributes').then(_radiusAttributes => {
+    radiusAttributes.value = _radiusAttributes
   })
 
   const schema = computed(() => schemaFn(props, roles))
@@ -101,6 +108,17 @@ export const useForm = (props, context) => {
     return placeholder === 'Y'
   })
 
+  const isRadiusAttributesMap = computed(() => {
+    // inspect form value for `RadiusAttributesMap`
+    const { RadiusAttributesMap } = form.value
+    if (RadiusAttributesMap !== null)
+      return RadiusAttributesMap === 'Y'
+
+    // inspect meta placeholder for `RadiusAttributesMap`
+    const { RadiusAttributesMap: { placeholder } = {} } =  meta.value
+    return placeholder === 'Y'
+  })
+
   const isRoleMap = computed(() => {
     // inspect form value for `RoleMap`
     const { RoleMap } = form.value
@@ -160,6 +178,7 @@ export const useForm = (props, context) => {
     filteredSwitches,
 
     isAccessListMap,
+    isRadiusAttributesMap,
     isRoleMap,
     isVpnMap,
     isUrlMap,
