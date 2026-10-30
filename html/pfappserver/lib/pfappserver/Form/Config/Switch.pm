@@ -38,6 +38,7 @@ use List::MoreUtils qw(any uniq);
 use pf::ConfigStore::SwitchGroup;
 use pf::ConfigStore::Switch;
 use pfappserver::Util::ACLs qw(_validate_acl);
+use pf::util::radius_attributes qw(radius_attribute_line_errors);
 
 ## Definition
 has_field 'id' =>
@@ -138,6 +139,12 @@ has_field 'AccessListMap' =>
   (
    type => 'Toggle',
    label => 'Role by access list',
+   default => undef,
+  );
+has_field 'RadiusAttributesMap' =>
+  (
+   type => 'Toggle',
+   label => 'Role by RADIUS attributes',
    default => undef,
   );
 has_field 'UrlMap' =>
@@ -594,6 +601,8 @@ addRoleMapping("VpnMapping", "vpn");
 addRoleMapping("NetworkMapping", "network");
 addRoleMapping("NetworkFromMapping", "networkfrom");
 addRoleMapping("InterfaceMapping", "interface");
+addRoleMapping("RadiusAttributesMapping", "radiusattributes", [ type => 'Repeatable', num_when_empty => 0, num_extra => 0 ]);
+has_field 'RadiusAttributesMapping.radiusattributes.contains' => ( type => 'RadiusAttribute' );
 
 # Add mappings for Enabled parameters
 addRoleMapping("VlanEnabledMapping", "vlan_enabled");
@@ -618,6 +627,10 @@ foreach my $role (@all_roles) {
             required => 0,
         );
     }
+
+    # The RADIUS attributes of the role, as the RADIUS attributes of the switch templates
+    has_field "${role}RadiusAttributes" => ( type => 'Repeatable', num_when_empty => 0, num_extra => 0 );
+    has_field "${role}RadiusAttributes.contains" => ( type => 'RadiusAttribute' );
     
     # Define the Enabled fields
     foreach my $type (qw(VlanEnabled RoleEnabled AccessListEnabled UrlEnabled VpnEnabled InterfaceEnabled)) {
@@ -880,6 +893,8 @@ Validate the MAC address format of the inline triggers.
 
 Validate the list of uplink ports.
 
+Validate the RADIUS attributes of the roles.
+
 =cut
 
 sub validate {
@@ -937,6 +952,8 @@ sub validate {
         $self->validateFqdnId($value->{id}, $type);
     }
 
+    $self->validateRadiusAttributesMapping();
+
     unless ($self->has_errors) {
         # Valide the MAC address format of the inline triggers.
         @triggers = grep { $_->{type} eq $MAC } @{$value->{inlineTrigger}};
@@ -976,6 +993,23 @@ sub validateAccessListMapping {
        );
        if ($error) {
            $accesslist_field->add_error($error->{message});
+       }
+   }
+}
+
+sub validateRadiusAttributesMapping {
+    my ($self) = @_;
+    my $radiusAttributesMapping = $self->field('RadiusAttributesMapping');
+    for my $parent ($radiusAttributesMapping->fields()) {
+       my $role_field = $parent->field('role');
+       my $radiusattributes_field = $parent->field('radiusattributes');
+       my @lines = map { join(' = ', map { $_ // '' } $_->field('type')->value, $_->field('value')->value) }
+           $radiusattributes_field->fields;
+       my @errors = radius_attribute_line_errors(join("\n", @lines));
+       if (@errors) {
+           $radiusattributes_field->add_error("Invalid RADIUS attributes of the role " . $role_field->value
+               . ", one 'Attribute-Name = value' per line with an attribute of the RADIUS dictionary "
+               . "and a value of its type: " . join('; ', @errors));
        }
    }
 }

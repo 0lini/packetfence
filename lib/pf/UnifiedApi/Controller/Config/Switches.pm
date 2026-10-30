@@ -136,6 +136,9 @@ sub cleanup_options {
     my %role_map        = map { $_->{role} => $_->{controller_role} } @{$placeholder->{ControllerRoleMapping} // []};
     my %network_map     = map { $_->{role} => $_->{network} }         @{$placeholder->{NetworkMapping} // []};
     my %networkfrom_map = map { $_->{role} => $_->{networkfrom} }     @{$placeholder->{NetworkFromMapping} // []};
+    my %radius_attributes_map = map { $_->{role} => $_->{radiusattributes} }
+        @{$placeholder->{RadiusAttributesMapping} // []};
+    my $radius_attributes_item = $meta->{RadiusAttributesMapping}{item}{properties}{radiusattributes}{item};
 
     for my $a (@{$allowed_roles}) {
         my $r = $a->{value};
@@ -147,6 +150,9 @@ sub cleanup_options {
         $meta->{"${r}Role"}        = { default => undef, type => "string", placeholder => $role_map{$r},        required => $required };
         $meta->{"${r}Network"}     = { default => undef, type => "string", placeholder => $network_map{$r},     required => $required };
         $meta->{"${r}NetworkFrom"} = { default => undef, type => "string", placeholder => $networkfrom_map{$r}, required => $required };
+        $meta->{"${r}RadiusAttributes"} = {
+            default => undef, type => "array", item => $radius_attributes_item, placeholder => $radius_attributes_map{$r}, required => $required
+        };
     }
 }
 
