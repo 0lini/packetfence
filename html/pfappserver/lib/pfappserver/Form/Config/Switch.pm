@@ -38,6 +38,7 @@ use List::MoreUtils qw(any uniq);
 use pf::ConfigStore::SwitchGroup;
 use pf::ConfigStore::Switch;
 use pfappserver::Util::ACLs qw(_validate_acl);
+use pf::util::radius_attributes qw(radius_attribute_line_errors);
 
 ## Definition
 has_field 'id' =>
@@ -138,6 +139,12 @@ has_field 'AccessListMap' =>
   (
    type => 'Toggle',
    label => 'Role by access list',
+   default => undef,
+  );
+has_field 'RadiusAttributesMap' =>
+  (
+   type => 'Toggle',
+   label => 'Role by RADIUS attributes',
    default => undef,
   );
 has_field 'UrlMap' =>
@@ -594,6 +601,19 @@ addRoleMapping("VpnMapping", "vpn");
 addRoleMapping("NetworkMapping", "network");
 addRoleMapping("NetworkFromMapping", "networkfrom");
 addRoleMapping("InterfaceMapping", "interface");
+addRoleMapping("RadiusAttributesMapping", "radiusattributes", [ validate_method => \&_validate_radius_attributes ]);
+
+sub _validate_radius_attributes {
+    my ($field) = @_;
+    my @errors = radius_attribute_line_errors($field->value);
+    if (@errors) {
+        # The role is validated after this field, its value is not set yet
+        my $role_field = $field->parent->field('role');
+        my $role = $role_field->value // $role_field->input // '';
+        $field->add_error("Invalid RADIUS attributes of the role $role, one 'Attribute-Name = value' per line "
+            . "with an attribute of the RADIUS dictionary and a value of its type: " . join('; ', @errors));
+    }
+}
 
 # Add mappings for Enabled parameters
 addRoleMapping("VlanEnabledMapping", "vlan_enabled");
@@ -611,7 +631,7 @@ my %seen;
 
 foreach my $role (@all_roles) {
     # Define the mapping fields
-    foreach my $type (qw(Vlan Role AccessList Url Vpn Network NetworkFrom Interface)) {
+    foreach my $type (qw(Vlan Role AccessList Url Vpn Network NetworkFrom Interface RadiusAttributes)) {
         my $field_name = "${role}${type}";
         has_field $field_name => (
             type => 'Text',
@@ -620,7 +640,8 @@ foreach my $role (@all_roles) {
     }
     
     # Define the Enabled fields
-    foreach my $type (qw(VlanEnabled RoleEnabled AccessListEnabled UrlEnabled VpnEnabled InterfaceEnabled)) {
+    foreach my $type (qw(VlanEnabled RoleEnabled AccessListEnabled UrlEnabled VpnEnabled InterfaceEnabled
+                          RadiusAttributesEnabled)) {
         my $field_name = "${role}${type}";
         has_field $field_name => (
             type => 'Text',
@@ -645,7 +666,9 @@ after 'BUILD' => sub {
         # Find all role-specific fields in the init data
         foreach my $key (keys %$init_object) {
             # Check for role mapping fields including Enabled parameters
-            if ($key =~ /^(.+?)(Vlan|Role|AccessList|Url|Vpn|Network|NetworkFrom|Interface|VlanEnabled|RoleEnabled|AccessListEnabled|UrlEnabled|VpnEnabled|InterfaceEnabled)$/) {
+            if ($key =~ /^(.+?)(Vlan|Role|AccessList|Url|Vpn|Network|NetworkFrom|Interface|RadiusAttributes
+                               |VlanEnabled|RoleEnabled|AccessListEnabled|UrlEnabled|VpnEnabled|InterfaceEnabled
+                               |RadiusAttributesEnabled)$/x) {
                 my $role = $1;
                 my $type = $2;
                 
