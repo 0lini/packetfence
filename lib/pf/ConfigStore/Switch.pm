@@ -44,6 +44,7 @@ our %MappingKey = (
     NetworkMapping => 'network',
     NetworkFromMapping => 'networkfrom',
     InterfaceMapping => 'interface',
+    RadiusAttributesMapping => 'radiusattributes',
 );
 
 our %MappingKey2 = (
@@ -55,6 +56,7 @@ our %MappingKey2 = (
     NetworkMapping => 'Network',
     NetworkFromMapping => 'NetworkFrom',
     InterfaceMapping => 'Interface',
+    RadiusAttributesMapping => 'RadiusAttributes',
 );
 
 =head2 Methods
@@ -121,11 +123,15 @@ sub _expandMapping {
     my $toset = {};
     my $enabled = {};
     while (my ($attr, $val) = each %$switch) {
-        if ($attr =~ /(.*)(AccessList|Vlan|Url|Role|Vpn|Interface|Network|NetworkFrom)$/) {
+        if ($attr =~ /(.*)(AccessList|Vlan|Url|Role|Vpn|Interface|Network|NetworkFrom|RadiusAttributes)$/) {
             my $type = $2;
             my $role = $1;
             if ($type eq 'AccessList' && ref($val) eq 'ARRAY') {
                 $val = join("\n", @$val);
+                $toset->{$attr} = $val;
+            } elsif ($type eq 'RadiusAttributes') {
+                # One "Attribute-Name = value" per line, as the RADIUS attributes of the switch templates
+                $val = [ grep { ref($_) || /\S/ } map { ref($_) ? $_ : split /\r?\n/ } ref($val) eq 'ARRAY' ? @$val : ($val // ()) ];
                 $toset->{$attr} = $val;
             }
 
@@ -157,7 +163,7 @@ sub _expandMapping {
         }
     }
 
-    for my $k (qw(AccessListMapping VlanMapping UrlMapping ControllerRoleMapping VpnMapping InterfaceMapping NetworkMapping NetworkFromMapping))  {
+    for my $k (keys %MappingKey)  {
         next if !exists $switch->{$k};
         $switch->{$k} = [sort { $a->{role} cmp $b->{role} } @{$switch->{$k} // []}]
     }
@@ -182,12 +188,27 @@ sub cleanupBeforeCommit {
     $self->_normalizeInlineTrigger($switch);
     _flattenRoleMappings($switch);
     _deleteRoleMappings($switch);
+    _joinRadiusAttributes($switch);
+}
+
+=item _joinRadiusAttributes
+
+The RADIUS attributes of a role are saved one "Attribute-Name = value" per line
+
+=cut
+
+sub _joinRadiusAttributes {
+    my ($switch) = @_;
+    for my $attr (grep { /RadiusAttributes$/ && ref($switch->{$_}) eq 'ARRAY' } keys %$switch) {
+        my @lines = map { ref($_) eq 'HASH' ? join(' = ', @{$_}{qw(type value)}) : $_ } @{$switch->{$attr}};
+        $switch->{$attr} = @lines ? join("\n", @lines) : undef;
+    }
 }
 
 sub _flattenRoleMappings {
     my ( $switch ) = @_;
     
-    for my $namespace (qw(AccessListMapping VlanMapping UrlMapping ControllerRoleMapping VpnMapping InterfaceMapping NetworkMapping NetworkFromMapping))  {
+    for my $namespace (keys %MappingKey)  {
         my $list = $switch->{$namespace} // [];
         for my $mapping (@$list) {
             my $role = $mapping->{role};
@@ -201,7 +222,7 @@ sub _flattenRoleMappings {
 
 sub _deleteRoleMappings {
     my ( $switch ) = @_;
-    delete @{$switch}{qw(AccessListMapping VlanMapping UrlMapping ControllerRoleMapping VpnMapping InterfaceMapping NetworkMapping NetworkFromMapping)};
+    delete @{$switch}{keys %MappingKey};
 }
 
 =head2 _normalizeUplink
