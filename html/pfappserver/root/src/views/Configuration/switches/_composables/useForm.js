@@ -112,6 +112,17 @@ const useForm = (props, context) => {
     return placeholder === 'Y'
   })
 
+  const isRadiusAttributesMap = computed(() => {
+    // inspect form value for `RadiusAttributesMap`
+    const { RadiusAttributesMap } = form.value
+    if (RadiusAttributesMap !== null)
+      return RadiusAttributesMap === 'Y'
+
+    // inspect meta placeholder for `RadiusAttributesMap`
+    const { RadiusAttributesMap: { placeholder } = {} } =  meta.value
+    return placeholder === 'Y'
+  })
+
   const isRoleMap = computed(() => {
     // inspect form value for `RoleMap`
     const { RoleMap } = form.value
@@ -246,6 +257,12 @@ const useForm = (props, context) => {
     })
   }
 
+  const toggleAllRadiusAttributesEnabled = (enabled) => {
+    roles.value.forEach(role => {
+      form.value[`${role}RadiusAttributesEnabled`] = enabled ? 'enabled' : 'disabled'
+    })
+  }
+
   return {
     advancedMode,
     schema: metaSchema,
@@ -254,6 +271,7 @@ const useForm = (props, context) => {
     supports,
     isUplinkDynamic,
     isAccessListMap,
+    isRadiusAttributesMap,
     isRoleMap,
     isVpnMap,
     isUrlMap,
@@ -273,7 +291,8 @@ const useForm = (props, context) => {
     toggleAllAccessListEnabled,
     toggleAllUrlEnabled,
     toggleAllVpnEnabled,
-    toggleAllInterfaceEnabled
+    toggleAllInterfaceEnabled,
+    toggleAllRadiusAttributesEnabled
   }
 }
 
