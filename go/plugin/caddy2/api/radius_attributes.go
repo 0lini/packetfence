@@ -121,8 +121,15 @@ func setupRadiusDictionary() {
 func appendRadiusAttributes(items *[]RadiusAttribute, attributes []*dictionary.Attribute, values []*dictionary.Value, vendor string) {
 	for _, a := range attributes {
 		var allowedValues []RadiusAttributeValue
+		seen := map[RadiusAttributeValue]bool{}
 		for _, v := range dictionary.ValuesByAttribute(values, a.Name) {
-			allowedValues = append(allowedValues, RadiusAttributeValue{Name: v.Name, Value: v.Number})
+			value := RadiusAttributeValue{Name: v.Name, Value: v.Number}
+			// Some dictionaries of FreeRADIUS define the same value twice (Error-Cause in RFC 3576 and RFC 5176)
+			if seen[value] {
+				continue
+			}
+			seen[value] = true
+			allowedValues = append(allowedValues, value)
 		}
 
 		*items = append(*items, RadiusAttribute{Name: a.Name, AllowedValues: allowedValues, PlaceHolder: placeHolders[a.Name], Vendor: vendor, searchName: strings.ToLower(a.Name), searchVendor: strings.ToLower(vendor)})

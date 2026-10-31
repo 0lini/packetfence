@@ -1,2 +1,1 @@
-$INCLUDE /usr/share/freeradius/dictionary
 $INCLUDE /usr/local/pf/raddb/dictionary

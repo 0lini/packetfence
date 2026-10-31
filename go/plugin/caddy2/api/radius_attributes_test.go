@@ -127,3 +127,16 @@ func TestHttpRequest(t *testing.T) {
 		t.Errorf("Status is incorrect got %d instead of %d", searchResults.Status, 422)
 	}
 }
+
+func TestAllowedValuesAreUnique(t *testing.T) {
+	setupRadiusDictionary()
+	for _, a := range radiusAttributes {
+		seen := map[string]bool{}
+		for _, v := range a.AllowedValues {
+			if seen[v.Name] {
+				t.Errorf("%s has the value %s more than once", a.Name, v.Name)
+			}
+			seen[v.Name] = true
+		}
+	}
+}
