@@ -45,6 +45,7 @@ our @ROLE_MAPPINGS = (
     [ 'NetworkMapping',          'Network',         'network' ],
     [ 'NetworkFromMapping',      'NetworkFrom',     'networkfrom' ],
     [ 'InterfaceMapping',        'Interface',       'interface' ],
+    [ 'RadiusAttributesMapping', 'RadiusAttributes','radiusattributes' ],
 );
 
 our %ROLE_MAPPING_BY_NAMESPACE = map { $_->[0] => $_ } @ROLE_MAPPINGS;
@@ -124,6 +125,9 @@ sub _expandMapping {
             if ($suffix eq 'AccessList' && ref($val) eq 'ARRAY') {
                 $val = join("\n", @$val);
                 $toset->{$attr} = $val;
+            } elsif ($suffix eq 'RadiusAttributes') {
+                $val = listify($val);
+                $toset->{$attr} = $val;
             }
 
             push @{$toset->{$namespace}}, { role => $role, $key => $val };
@@ -181,7 +185,8 @@ sub _flattenRoleMappings {
         my ($namespace, $suffix, $row_key) = @$m;
         my $list = $switch->{$namespace} // [];
         for my $mapping (@$list) {
-            $switch->{"$mapping->{role}$suffix"} = $mapping->{$row_key};
+            my $val = $mapping->{$row_key};
+            $switch->{"$mapping->{role}$suffix"} = (ref($val) eq 'ARRAY' && !@$val) ? undef : $val;
         }
     }
 

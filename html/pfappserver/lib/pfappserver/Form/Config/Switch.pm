@@ -140,6 +140,12 @@ has_field 'AccessListMap' =>
    label => 'Role by access list',
    default => undef,
   );
+has_field 'RadiusAttributesMap' =>
+  (
+   type => 'Toggle',
+   label => 'Role by RADIUS attributes',
+   default => undef,
+  );
 has_field 'UrlMap' =>
   (
    type => 'Toggle',
@@ -586,10 +592,17 @@ sub addRoleMapping {
     );
 }
 
+my %ROLE_MAPPING_FIELD = (
+    RadiusAttributesMapping => [type => 'Repeatable', num_when_empty => 0, num_extra => 0],
+);
+
 for my $mapping (@pf::ConfigStore::Switch::ROLE_MAPPINGS) {
     my ($namespace, undef, $key) = @$mapping;
-    addRoleMapping($namespace, $key);
+    addRoleMapping($namespace, $key, $ROLE_MAPPING_FIELD{$namespace});
 }
+has_field "RadiusAttributesMapping.radiusattributes.contains" => (
+    type => 'RadiusAttribute',
+);
 
 # Add mappings for Enabled parameters
 addRoleMapping("VlanEnabledMapping", "vlan_enabled");
