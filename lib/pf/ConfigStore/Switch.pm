@@ -35,27 +35,23 @@ sub default_section { 'default' }
 
 sub pfconfigNamespace {'config::Switch'}
 
-our %MappingKey = (
-    AccessListMapping => 'accesslist',
-    VlanMapping => 'vlan',
-    UrlMapping => 'url',
-    ControllerRoleMapping => 'controller_role',
-    VpnMapping => 'vpn',
-    NetworkMapping => 'network',
-    NetworkFromMapping => 'networkfrom',
-    InterfaceMapping => 'interface',
+# The per-role mappings: [ API mapping, suffix of the <role><suffix> parameter, field of the mapping row ]
+our @ROLE_MAPPINGS = (
+    [ 'AccessListMapping',      'AccessList',      'accesslist' ],
+    [ 'VlanMapping',             'Vlan',            'vlan' ],
+    [ 'UrlMapping',              'Url',             'url' ],
+    [ 'ControllerRoleMapping',   'Role',            'controller_role' ],
+    [ 'VpnMapping',              'Vpn',             'vpn' ],
+    [ 'NetworkMapping',          'Network',         'network' ],
+    [ 'NetworkFromMapping',      'NetworkFrom',     'networkfrom' ],
+    [ 'InterfaceMapping',        'Interface',       'interface' ],
 );
 
-our %MappingKey2 = (
-    AccessListMapping => 'AccessList',
-    VlanMapping => 'Vlan',
-    UrlMapping => 'Url',
-    ControllerRoleMapping => 'Role',
-    VpnMapping => 'Vpn',
-    NetworkMapping => 'Network',
-    NetworkFromMapping => 'NetworkFrom',
-    InterfaceMapping => 'Interface',
-);
+our %ROLE_MAPPING_BY_NAMESPACE = map { $_->[0] => $_ } @ROLE_MAPPINGS;
+our %ROLE_MAPPING_BY_SUFFIX    = map { $_->[1] => $_ } @ROLE_MAPPINGS;
+
+# The suffixes of the per-role parameters (<role>Vlan, <role>Url, ...)
+our $MAPPING_SUFFIX_RE = join('|', sort keys %ROLE_MAPPING_BY_SUFFIX);
 
 =head2 Methods
 
@@ -121,23 +117,16 @@ sub _expandMapping {
     my $toset = {};
     my $enabled = {};
     while (my ($attr, $val) = each %$switch) {
-        if ($attr =~ /(.*)(AccessList|Vlan|Url|Role|Vpn|Interface|Network|NetworkFrom)$/) {
-            my $type = $2;
+        if ($attr =~ /(.*)($MAPPING_SUFFIX_RE)$/) {
+            my $suffix = $2;
             my $role = $1;
-            if ($type eq 'AccessList' && ref($val) eq 'ARRAY') {
+            my ($namespace, undef, $key) = @{$ROLE_MAPPING_BY_SUFFIX{$suffix}};
+            if ($suffix eq 'AccessList' && ref($val) eq 'ARRAY') {
                 $val = join("\n", @$val);
                 $toset->{$attr} = $val;
             }
 
-            my $key;
-            if ($type eq 'Role') {
-                $type = 'ControllerRole';
-                $key = 'controller_role';
-            } else {
-                $key = lc($type);
-            }
-
-            push @{$toset->{"${type}Mapping"}}, { role => $role, $key => $val };
+            push @{$toset->{$namespace}}, { role => $role, $key => $val };
         } elsif ($attr =~ /(.*)(VlanEnabled|RoleEnabled|AccessListEnabled|UrlEnabled|VpnEnabled|InterfaceEnabled)$/) {
             # Store the enabled state for later use
             my $type = $2;
@@ -157,7 +146,8 @@ sub _expandMapping {
         }
     }
 
-    for my $k (qw(AccessListMapping VlanMapping UrlMapping ControllerRoleMapping VpnMapping InterfaceMapping NetworkMapping NetworkFromMapping))  {
+    for my $m (@ROLE_MAPPINGS) {
+        my $k = $m->[0];
         next if !exists $switch->{$k};
         $switch->{$k} = [sort { $a->{role} cmp $b->{role} } @{$switch->{$k} // []}]
     }
@@ -186,22 +176,22 @@ sub cleanupBeforeCommit {
 
 sub _flattenRoleMappings {
     my ( $switch ) = @_;
-    
-    for my $namespace (qw(AccessListMapping VlanMapping UrlMapping ControllerRoleMapping VpnMapping InterfaceMapping NetworkMapping NetworkFromMapping))  {
+
+    for my $m (@ROLE_MAPPINGS) {
+        my ($namespace, $suffix, $row_key) = @$m;
         my $list = $switch->{$namespace} // [];
         for my $mapping (@$list) {
-            my $role = $mapping->{role};
-            $switch->{"${role}$MappingKey2{$namespace}"} = $mapping->{$MappingKey{$namespace}};
+            $switch->{"$mapping->{role}$suffix"} = $mapping->{$row_key};
         }
     }
-    
+
     # Don't delete Enabled parameters - they should be preserved
     # They are separate from the mapping values and should always be kept
 }
 
 sub _deleteRoleMappings {
     my ( $switch ) = @_;
-    delete @{$switch}{qw(AccessListMapping VlanMapping UrlMapping ControllerRoleMapping VpnMapping InterfaceMapping NetworkMapping NetworkFromMapping)};
+    delete @{$switch}{map { $_->[0] } @ROLE_MAPPINGS};
 }
 
 =head2 _normalizeUplink

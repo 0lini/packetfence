@@ -37,10 +37,9 @@ use pf::constants::role qw(@ROLES %STANDARD_ROLES);
 
 my $COMMIT = grep { $_ eq '--commit' } @ARGV;
 
-# Per-role mapping suffixes, matching pf::ConfigStore::Switch::_expandMapping and
+# Per-role mapping suffixes, as pf::ConfigStore::Switch::_expandMapping and
 # Config/Roles.pm::reassign_role_config_store_switch.
-my @SUFFIXES = qw(Role Url Vlan AccessList Vpn Interface Network NetworkFrom);
-my $SUFFIX_RE = join('|', @SUFFIXES);
+my $SUFFIX_RE = $pf::ConfigStore::Switch::MAPPING_SUFFIX_RE;
 
 # Reserved/built-in switch role names. These are legitimate switch attributes
 # shipped in switches.conf.defaults (e.g. normalVlan, macDetectionRole,

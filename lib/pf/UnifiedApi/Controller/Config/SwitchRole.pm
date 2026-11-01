@@ -63,14 +63,11 @@ sub makeMappings {
     my %mapping;
 
     while (my ($k, $v) = each %$patch) {
-        next unless ($k =~ /(.*)(AccessList|Vlan|Url|Role|Vpn|Interface|Network|NetworkFrom)$/);
-        my $type = $2;
+        next unless ($k =~ /(.*)($pf::ConfigStore::Switch::MAPPING_SUFFIX_RE)$/);
+        my $suffix = $2;
         my $role = $1;
-        if ($type eq 'Role') {
-            $type = 'ControllerRole';
-        }
-        $mapping{"${type}Mapping"}{$role} = $v;
-        #delete $patch->{$k};
+        my $namespace = $pf::ConfigStore::Switch::ROLE_MAPPING_BY_SUFFIX{$suffix}[0];
+        $mapping{$namespace}{$role} = $v;
     }
     return \%mapping;
 }
@@ -78,7 +75,7 @@ sub makeMappings {
 sub mergeMappings {
     my ($item, $mappings) = @_;
     while (my ($n, $m) = each %$mappings) {
-        my $key = $pf::ConfigStore::Switch::MappingKey{$n};
+        my $key = $pf::ConfigStore::Switch::ROLE_MAPPING_BY_NAMESPACE{$n}[2];
         if (!exists $item->{$n}) {
             my @array;
             while (my ($role, $val) = each %$m) {

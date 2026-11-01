@@ -586,14 +586,10 @@ sub addRoleMapping {
     );
 }
 
-addRoleMapping("VlanMapping", "vlan");
-addRoleMapping("UrlMapping", "url");
-addRoleMapping("ControllerRoleMapping", "controller_role");
-addRoleMapping("AccessListMapping", "accesslist");
-addRoleMapping("VpnMapping", "vpn");
-addRoleMapping("NetworkMapping", "network");
-addRoleMapping("NetworkFromMapping", "networkfrom");
-addRoleMapping("InterfaceMapping", "interface");
+for my $mapping (@pf::ConfigStore::Switch::ROLE_MAPPINGS) {
+    my ($namespace, undef, $key) = @$mapping;
+    addRoleMapping($namespace, $key);
+}
 
 # Add mappings for Enabled parameters
 addRoleMapping("VlanEnabledMapping", "vlan_enabled");
@@ -611,7 +607,7 @@ my %seen;
 
 foreach my $role (@all_roles) {
     # Define the mapping fields
-    foreach my $type (qw(Vlan Role AccessList Url Vpn Network NetworkFrom Interface)) {
+    foreach my $type (map { $_->[1] } @pf::ConfigStore::Switch::ROLE_MAPPINGS) {
         my $field_name = "${role}${type}";
         has_field $field_name => (
             type => 'Text',
@@ -645,7 +641,7 @@ after 'BUILD' => sub {
         # Find all role-specific fields in the init data
         foreach my $key (keys %$init_object) {
             # Check for role mapping fields including Enabled parameters
-            if ($key =~ /^(.+?)(Vlan|Role|AccessList|Url|Vpn|Network|NetworkFrom|Interface|VlanEnabled|RoleEnabled|AccessListEnabled|UrlEnabled|VpnEnabled|InterfaceEnabled)$/) {
+            if ($key =~ /^(.+?)($pf::ConfigStore::Switch::MAPPING_SUFFIX_RE|VlanEnabled|RoleEnabled|AccessListEnabled|UrlEnabled|VpnEnabled|InterfaceEnabled)$/) {
                 my $role = $1;
                 my $type = $2;
                 
