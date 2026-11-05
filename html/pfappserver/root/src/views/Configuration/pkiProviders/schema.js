@@ -62,6 +62,14 @@ export const schema = (props) => {
         : yup.string().nullable()
     }),
 
+    api_ca_path: yup.string().nullable().label(i18n.t('API CA certificate file')),
+    ca_name: yup.string().nullable().label(i18n.t('CA Name')),
+    certificate_profile: yup.string().nullable().label(i18n.t('Certificate Profile')),
+    end_entity_profile: yup.string().nullable().label(i18n.t('End Entity Profile')),
+    key_algorithm: yup.string().nullable().label(i18n.t('Key Algorithm')),
+    key_spec: yup.string().nullable().label(i18n.t('Key Specification')),
+    revocation_reason: yup.string().nullable().label(i18n.t('Revocation Reason')),
+
     url: yup.string().nullable().label('URL'),
     proto: yup.string().nullable().label(i18n.t('Protocol')),
     host: yup.string().nullable().label(i18n.t('Host')),

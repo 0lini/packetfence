@@ -20,12 +20,14 @@
 import { computed, toRefs, unref } from '@vue/composition-api'
 import { useFormProps as props } from '../_composables/useForm'
 import { BaseContainerLoading } from '@/components/new/'
+import FormTypeEjbca from './FormTypeEjbca'
 import FormTypePacketfenceLocal from './FormTypePacketfenceLocal'
 import FormTypePacketfencePki from './FormTypePacketfencePki'
 
 const components = {
   BaseContainerLoading,
 
+  FormTypeEjbca,
   FormTypePacketfenceLocal,
   FormTypePacketfencePki
 }
@@ -39,6 +41,7 @@ export const setup = (props) => {
   const formType = computed(() => {
     const { type } = unref(form)
     switch(unref(type)) {
+      case 'ejbca': return FormTypeEjbca // break
       case 'packetfence_local': return FormTypePacketfenceLocal //break
       case 'packetfence_pki': return FormTypePacketfencePki // break
       default:

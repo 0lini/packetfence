@@ -1,6 +1,7 @@
 import i18n from '@/utils/locale'
 
 export const pkiProvidersTypes = {
+  ejbca:              i18n.t('EJBCA'),
   packetfence_local:  i18n.t('Packetfence Local'),
   packetfence_pki:    i18n.t('Packetfence PKI')
 }
